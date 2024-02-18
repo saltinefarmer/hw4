@@ -107,7 +107,6 @@ int main(int argc, char *argv[]) {
 			}
 			chdir(dir);
 
-
 		}else if(strcmp(cmd, "pwd") == 0){
 			// execute pwd
 			char* directory = (char*)malloc(4096);
