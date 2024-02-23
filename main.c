@@ -17,6 +17,9 @@
 #define MAX_PROC 250
 
 int main(int argc, char *argv[]) {
+	int len = 0; // num of paths to check
+	
+	char *cmdline = (char*) malloc(MAXBUF); // stores user input from commmand line
 
 	// DO NOT REMOVE THE BLOCK BELOW (FORK BOMB PREVENTION) //
 	struct rlimit limit;
@@ -25,10 +28,16 @@ int main(int argc, char *argv[]) {
 	setrlimit(RLIMIT_NPROC, &limit);
 	// DO NOT REMOVE THE BLOCK ABOVE THIS LINE //
 
-	char *cmdline = (char*) malloc(MAXBUF); // stores user input from commmand line
 
 	//char *tokens = (char*) malloc(256);
 	while (1){
+		char** path_locs = (char**)malloc(sizeof(char*)*100);
+		char* path = (char*) malloc(4096);
+		char* checks = (char*) malloc(256);
+		char* directory = (char*)malloc(4096);
+		char* tokens = (char*) malloc(50);
+		char** input_list = (char**)malloc(sizeof(char*)*100); //a random # for now
+		char* dir = (char*) malloc(4096);
 		printf("dsh> ");
 		//scanf("%s", cmdline);
 		if(fgets(cmdline, 256, stdin) == NULL){
@@ -36,27 +45,22 @@ int main(int argc, char *argv[]) {
 		}
 		
 		// get first command
-		char* tokens = (char*) malloc(50);
 		
 		strcpy(tokens, cmdline);
 		
 		tokens = strtok(tokens, " \n\t");
 
 		char cmd[50];
-		if(tokens == NULL){
+		if(tokens == NULL){ 
 			continue;
 		}
 		strcpy(cmd, tokens);
 		
 
-		int i[1];
-		i[0] = 0;		
-		int and[1];
-		and[0] = 0;
-
-		char **input_list = (char**)malloc(sizeof(char*)*100); //arb # for now
-			
-		input_list = split_cmd(cmdline, " \n\t", i, and);
+		int i;
+		i = 0;	
+	
+		input_list = split(cmdline, " \n\t", &i);
 
 		// mode one; full path is given
 		
@@ -72,21 +76,13 @@ int main(int argc, char *argv[]) {
 				if(p == -1){
 					if(errno == 11){
 						printf("Failed to fork: Too many processes: Resource temporarily unavailable");
-						continue;
 					}
 				}
 				if(p > 0){
-					printf("made it\n");
-
-					if(and[0] != 0){ //the final is &
-						printf("not waiting...\n");
-					} else{ // no extra commands or extras w/ no &
-						printf("waiting...\n");
-						wait();
-					}
-					continue;
+					if(i > 0 && strcmp(input_list[i-1], "&")!= 0){ //the final is &
+						wait(NULL); 
+					} 
 				} else if (p == 0){
-					printf("Doing!\n");
 					
 					execv(cmd, input_list);
 				}
@@ -97,7 +93,6 @@ int main(int argc, char *argv[]) {
 		} 
 		else if(strcmp(cmd, "cd") == 0){
 			// execute cd
-			char* dir = (char*) malloc(4096);
 			if(input_list[1] == NULL){
 				strcpy(dir, getenv("HOME"));
 			}else{
@@ -109,77 +104,96 @@ int main(int argc, char *argv[]) {
 
 		}else if(strcmp(cmd, "pwd") == 0){
 			// execute pwd
-			char* directory = (char*)malloc(4096);
 			getcwd(directory, 4096);
 			printf("%s\n", directory);
-			free(directory);
 		}else if(strcmp(cmd, "exit") == 0){
+
+			free(checks);
+			free(path_locs);
+			free_2D_array(input_list, i);
+			free(input_list);
+			free(tokens);
+			free(cmdline);
+			free(path);
+			free(directory);
+			free(dir);
 			exit(0);
 		}
 		else{
 			// its something else
-			char* directory = (char*)malloc(4096);
+			
 			getcwd(directory, 4096);
 			strcat(directory, "/");
 			strcat(directory, cmd);
 			if(access(directory, F_OK | X_OK) == 0){ // try to access file
 				// if success, do something here
-				printf("in current directory :)\n"); // execute cmd
+				__pid_t p = fork();
+
+				if(p == -1){
+					if(errno == 11){
+						printf("Failed to fork: Too many processes: Resource temporarily unavailable");
+					}
+				}
+				else if(p > 0){
+			
+					if(i > 0 && strcmp(input_list[i-1], "&")!= 0){ 
+						//extra commands, and the final is &
+						wait(NULL);
+					}
+				} else if (p == 0){
+					execv(directory, input_list);
+				}
 			} else{ // not success :(
-				char* path = (char*) malloc(4096);
+				
 				strcpy(path, getenv("PATH"));
-				int len[1]; // num of paths to check
-				len[0] = 0;
-				char** path_locs = split(path, ":", len);
-				char* checks = (char*) malloc(256);
+				path_locs = split(path, ":", &len);
 
 
-				for (int j = 0; j < len[0]; j++){
+				for (int j = 0; j < len; j++){
 					strcpy(checks, path_locs[j]);
 					strcat(checks, "/");
 					strcat(checks, cmd);
 					if(access(checks, F_OK | X_OK) == 0){ // file exists
-
-						printf("Command found\n");
-
 
 						__pid_t p = fork();
 
 						if(p == -1){
 							if(errno == 11){
 								printf("Failed to fork: Too many processes: Resource temporarily unavailable");
-								continue;
 							}
 						}
-						if(p > 0){
-					
-							if(i[0] > 0 && strcmp(input_list[i[0]-1], "&")== 0){ //extra commands, and the final is &
-								printf("not waiting...\n");
-							} else{ // no extra commands or extras w/ no &
-								printf("waiting...\n");
-								wait();
-						}
+						else if(p > 0){
+							if(i > 0 && strcmp(input_list[i-1], "&")!= 0){ //extra commands, and the final is &
+								wait(NULL);
+							}
 						
 						} else if (p == 0){
-							printf("Doing!\n");
 							execv(checks, input_list);
 						}
 						break;
 					
 					}
-					if(j == len[0]-1){
+					else if(j == len-1){
 						printf("Command not found.\n");
 						
 					}
+					
 				}
-
+				free_2D_array(path_locs, len);
+				
 				
 			}
 		}
-	
-		
-		
-		
+			free(checks);
+			free(path_locs);
+			free_2D_array(input_list, i);
+			free(input_list);
+			free(tokens);
+			free(path);
+			free(directory);
+			free(dir);
+
+
 	}
 	return 0;
 }

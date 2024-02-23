@@ -17,54 +17,27 @@
 #include <string.h>
 
 
-// TODO: Your function definitions below (declarations in dsh.h)
 
-/**
- * This is just an example. Delete this before 
- * submission.
- */
-void example(int* x) {
-    //*x = thisIsGlobal;
-    x = 0;
-} 
 
-char** split_cmd(char *cmdline, char *delim, int *i, int *and){
-    char **input_list = (char**)malloc(sizeof(char*)*100); //arb # for now
+
+char** split(char* cmdline, char* delim, int *i){
+    char **input_list = (char**)malloc(sizeof(char*)*100); //a random # for now
     char *tokens = (char*) malloc(256);
     tokens = strtok(cmdline, delim);
-    i[0] = 0;
-    and[0] = 0;
-
-    //tokens = strtok(NULL, delim);
-
-    while(tokens != NULL){
-        if(strcmp(tokens, "&")==0){
-            and[0] = 1;
-            break;
-        }
-        
-        input_list[i[0]] = (char*) malloc(256);
-        strcpy(input_list[i[0]], tokens);
-
-        tokens = strtok(NULL, delim);
-        i[0]++;
-    }
-    //free(tokens);
-    return input_list;
-}
-
-char** split(char* cmdline, char* delim, int* i){
-    char **input_list = (char**)malloc(sizeof(char*)*100); //arb # for now
-    char *tokens = (char*) malloc(256);
-    tokens = strtok(cmdline, delim);
-    i[0] = 0;
+    *i = 0;
     
     while(tokens != NULL){
-        input_list[i[0]] = (char*) malloc(256);
-        strcpy(input_list[i[0]], tokens);
+        input_list[*i] = (char*) malloc(256);
+        strcpy(input_list[*i], tokens);
         tokens = strtok(NULL, delim);
         i[0]++;
     }
     free(tokens);
     return input_list;
+}
+
+void free_2D_array(char** input, int len){
+    for(int i = 0; i < len; i++){
+        free(input[i]);
+    }
 }
